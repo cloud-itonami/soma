@@ -1,0 +1,56 @@
+;; soma 杣 — actor manifest (Gen-3 kotoba-native, Clojure-first)
+;; Forestry / logging robotics — directional felling + bucking + extraction
+;; ADR-2606142010 (R0 scaffold) · 2026-06-14
+{:actor/id        "soma"
+ :actor/glyph     "杣"
+ :actor/tier      :tier-b
+ :actor/integrates ["kuramori" "tazuna"]
+ :actor/domain    "soma.etzhayyim.com"
+ :actor/purpose   "Forestry / logging robotics — the logging body the robotics remote-work survey (ADR-2606073001 §4) reserved (伐採, one of the deadliest jobs). Selective + regenerative harvest only: directional tree-felling mechanics (notch + hinge + back cut; predicts fall direction from lean/diameter/wind, computes hinge holding-wood; an unsafe fall zone overlapping a human/road/watercourse RAISES — the headline G5 fall-fatality gate), cut-to-length bucking value optimization (sawlog>pulp DP) + grapple-reach feasibility, and slope-limited low-ground-impact forwarder/skidder extraction (refuses over-grade / over-pressure / protected soil, regenerative G2). Protected-species / no-cut trees refuse felling (G7). Displacement-Dividend-coupled (林業作業員, ADR-2606032130); tazuna-teleoperable (ADR-2606042100). Clojure-first GAP-actor wave (sibling of kuramori 倉守, ADR-2606142000)."
+ :actor/status    :r0
+ :actor/adr       "2606142010"
+ :actor/related   ["2606142000" "2606073001" "2606032100" "2606032130" "2606042100" "2605215000" "2605312345"]
+
+ :actor/charter-rider
+ {:rider/version "3.1"
+  :rider/applied true}
+
+ :actor/gates
+ [{:gate/id "G1" :gate/name "design-sim-only"          :gate/rule "R0 = pure planning compute + sim; moves no real machine. Real actuation is Council Lv6+/operator-gated R1 (no-server-key)"}
+  {:gate/id "G2" :gate/name "selective-regenerative"   :gate/rule "Selective + regenerative harvest only; clear-cut + old-growth/protected-species felling unrepresentable; extraction refuses over-grade / over-ground-pressure / protected soil (no rutting/compaction beyond bearing)"}
+  {:gate/id "G3" :gate/name "no-worker-surveillance"   :gate/rule "KPI is m³/hour + value/volume (equipment metrics), never per-worker pace or biometric tracking (§1.13)"}
+  {:gate/id "G4" :gate/name "dividend-coupled"         :gate/rule "Forestry-labour displacement is coupled to a funded Displacement-Dividend cohort (ADR-2606032130 G2); no live displacement without it"}
+  {:gate/id "G5" :gate/name "exclusion-zone-fell-safety" :gate/rule "safe-fell? RAISES when the predicted fall zone (≈1.5× tree height sector) overlaps ANY exclusion/human/road/watercourse point — fall fatality is the #1 logging hazard; never silently planned"}
+  {:gate/id "G6" :gate/name "murakumo-only"            :gate/rule "Inference/narration is Murakumo-only (LiteLLM 127.0.0.1:4000); external LLM prohibited (ADR-2605215000)"}
+  {:gate/id "G7" :gate/name "protected-species-refusal" :gate/rule "A protected species or a no-cut flag (old-growth / seed-tree) on a tree REFUSES felling (plan-fell RAISES) — never silently forced"}
+  {:gate/id "G8" :gate/name "tazuna-operated"          :gate/rule "Remote operation/teleop is via tazuna 手綱 (ADR-2606042100); weaponizable use unrepresentable"}
+  {:gate/id "G9" :gate/name "handoff-provenance"       :gate/rule "A cross-actor handoff 縁 soma→tatekata (graded timber-supply intent) must name both a source and a destination actor; an orphan handoff (missing :from-actor / :to-actor) RAISES — no unattributed chain edge"}]
+
+ :actor/methods
+ [{:method/id "fell_plan"   :method/lang :clojure :method/pure true :method/desc "Directional tree-felling mechanics: predict fall azimuth from notch-aim biased by lean + perturbed by wind, hinge holding-wood width, 1.5×-height fall-zone sector; safe-fell? + plan-fell RAISE on exclusion overlap (G5) or protected/no-cut tree (G7)"}
+  {:method/id "harvester"   :method/lang :clojure :method/pure true :method/desc "Cut-to-length bucking value optimization (unbounded rod-cutting DP over a price-by-length-class table, sawlog>pulp) + grapple/boom reach feasibility (G8)"}
+  {:method/id "delimb"      :method/lang :clojure :method/pure true :method/desc "Harvester processing-head delimbing pass: delimb-pass computes branch whorls removed (≈ length / whorl-spacing) + feed pass time (length / feed-rate) + :clean? for one felled stem through a head {:max-diameter-cm :feed-rate-mps}; an oversize stem (diameter > head max) RAISES (cannot grip/process — never silently forced); process-stems sums total pass time + branches over a seq, raising on the first oversize (plan must be feasible)"}
+  {:method/id "extraction"  :method/lang :clojure :method/pure true :method/desc "Forwarder/skidder extraction: slope gate (refuse over max grade) + ground-impact gate (refuse over soil bearing / protected soil); plan-route RAISES on over-grade or over-pressure (G2 regenerative-only)"}
+  {:method/id "analyze"     :method/lang :clojure :method/pure true :method/desc "End-to-end R0 orchestrator: load seed → per-tree fell (aim into a clear lane, refuse protected/unsafe) → buck → extraction route → report map"}
+  {:method/id "datom_emit"  :method/lang :clojure :method/pure true :method/desc "kotoba EAVT Datom-log emitter (:soma.stand/* :soma.tree/* :soma.exclusion/* :soma.forwarder/* + :felled / :refused-protected 縁 GROUND; :bond/* DERIVED transient)"}
+  {:method/id "handoff"     :method/lang :clojure :method/pure true :method/desc "Cross-actor chain 縁 soma→tatekata 建方: a bucked-log/assortment record {:log-id :grade :length-m :volume-m3} → a :timber-supply lumber intent (grade + volume on the payload); assert-handoff! provenance gate RAISES on an orphan handoff (G9); emit → append-only :handoff/* EAVT datoms"}
+  {:method/id "siteprep"    :method/lang :clojure :method/pure true :method/desc "Site preparation + regeneration (replant): replant-plan given {:area-ha :species :target-stems-per-ha [:soil]} computes seedling count (area × density) + a site-prep / ground-disturbance method by soil (scarification on firm/mineral, mounding on wet/compacted); RAISES on a :clear-cut? flag (clear-cut unrepresentable, G2 selective + regenerative only) OR a target density beyond max sustainable stocking (over-planting refused, G2) — the forest is renewed, never clear-cut and abandoned"}
+  {:method/id "road"        :method/lang :clojure :method/pure true :method/desc "Skid-trail / forest-road planning: plan-road routes landing → stand over terrain segments {:from :to :grade-pct :length-m [:stream-crossing?] [:culvert?]} (shortest feasible path via Dijkstra over :length-m, or simple ordered-list mode); every segment gated FIRST — a segment over max road grade (default 20%) RAISES (slope safety) and a stream crossing without a :culvert? RAISES (water-protection, G2 soil/eco discipline); returns {:route :total-length-m :crossings :max-grade-pct :feasible}"}
+  {:method/id "loadout"     :method/lang :clojure :method/pure true :method/desc "Log load-out onto a haul truck: load-truck packs graded assortments {:log-id :length-m :weight-kg :grade} onto a truck {:max-weight-kg :max-length-m :bunk-count} by First-Fit-Decreasing (heaviest first) respecting total weight ≤ max-weight AND each log :length-m ≤ max-length-m; logs that don't fit the remaining payload stay :remaining (next truck), never silently dropped → {:loaded :remaining :weight-util 0..1}; a single un-haulable log (over-length on the bunks OR heavier than the whole payload) RAISES (cannot be hauled — never forced, soma raising-gate discipline)"}
+  {:method/id "coverage"    :method/lang :clojure :method/pure true :method/desc "HONEST occupation sub-task coverage map (asobi/shiori pattern; G5 sourcing-honesty — partial by design): the forestry/logging (伐採) occupation decomposed into sub-tasks, each :covered? true ONLY if a real existing method implements it (felling/bucking/grading/extraction/timber-supply covered; delimbing/site-prep/forest-road/load-out NAMED as gaps). report → {:total :covered :coverage :gaps}; report-str → coverage % + honest gap bullets"}]
+
+ :actor/cells
+ [{:cell/id "fell"        :cell/kind :planning :cell/runtime :wasm :cell/layer "L0" :cell/method "fell_plan"}
+  {:cell/id "buck"        :cell/kind :planning :cell/runtime :wasm :cell/layer "L1" :cell/method "harvester"}
+  {:cell/id "extract"     :cell/kind :planning :cell/runtime :wasm :cell/layer "L2" :cell/method "extraction"}
+  {:cell/id "stand_plan"  :cell/kind :planning :cell/runtime :wasm :cell/layer "L3" :cell/method "analyze"}
+  {:cell/id "datom_emit"  :cell/kind :projection :cell/runtime :wasm :cell/layer "terminal" :cell/method "datom_emit"}]
+
+ :actor/reference-equipment
+ {:harvester/class "single-grip harvester head (fell + delimb + buck), tazuna-teleoperated"
+  :forwarder/class "electric forwarder, low ground pressure"
+  :forwarder/max-grade-pct 35.0
+  :hinge-ratio 0.10
+  :fall-zone-radius-factor 1.5
+  :charger "electric powertrain; no diesel/petrol chainsaw or skidder"
+  :stand/ref "stand-ref-01 (selective-harvest reference stand)"}}
