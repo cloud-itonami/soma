@@ -1,5 +1,5 @@
 ;; soma 杣 — test suite (clojure.test, babashka-runnable).
-;; Run: bb --classpath 20-actors 20-actors/soma/methods/test_soma.clj
+;; Tests are invoked by `bb run_tests.clj`; requiring this namespace has no process-exit side effect.
 ;; Per ADR-2606142010 (soma R0).
 (ns soma.methods.test-soma
   (:require [clojure.test :refer [deftest is testing run-tests]]
@@ -240,7 +240,7 @@
                                    :stream-crossing? true :culvert? true}])))))
 
 ;; ── analyze + datom_emit (end-to-end over the seed) ──────────────────────────
-(def seed (az/load-seed "20-actors/soma/data/stand.edn"))
+(def seed (az/load-seed "data/stand.edn"))
 
 (deftest analyze-end-to-end
   (let [res (az/run seed)]
@@ -414,7 +414,3 @@
       ;; strict superset — emit-day has more datoms than base emit
       (is (> (count (clojure.edn/read-string full))
              (count (clojure.edn/read-string base)))))))
-
-(when (= *file* (System/getProperty "babashka.file"))
-  (let [{:keys [fail error]} (run-tests 'soma.methods.test-soma)]
-    (System/exit (if (pos? (+ fail error)) 1 0))))

@@ -145,7 +145,7 @@
   (wrap (concat (base-lines seed day-res tx) (day-lines day-res tx))))
 
 (defn -main [& args]
-  (let [path (or (first args) "20-actors/soma/data/stand.edn")
+  (let [path (or (first args) "data/stand.edn")
         seed (az/load-seed path)
         day-res (az/run-day seed)]
     (print (emit-day seed day-res 1))

@@ -193,7 +193,7 @@
        " (max grade " (format "%.1f" (get-in res [:extraction :max-grade-pct])) "%)\n"))
 
 (defn -main [& args]
-  (let [path (or (first args) "20-actors/soma/data/stand.edn")
+  (let [path (or (first args) "data/stand.edn")
         seed (load-seed path)
         res (run-day seed)]
     (print (report-str res))

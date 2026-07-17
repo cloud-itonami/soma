@@ -43,7 +43,7 @@ methods authored directly in babashka-runnable Clojure, pure (no deps) so they r
 ## Layout
 
 ```
-20-actors/soma/
+com-etzhayyim-soma/
 ├── CLAUDE.md                       # this file
 ├── manifest.edn                    # actor manifest (5 cells, 8 gates, Clojure methods)
 ├── data/
@@ -63,9 +63,9 @@ methods authored directly in babashka-runnable Clojure, pure (no deps) so they r
 
 ```bash
 # from repo root (classpath = 20-actors, ns = soma.methods.*)
-bb --classpath 20-actors 20-actors/soma/methods/test_soma.clj   # 16 green
-bb --classpath 20-actors -m soma.methods.analyze                # → report
-bb --classpath 20-actors -m soma.methods.datom-emit             # → EAVT Datom log
+bb run_tests.clj                                                # full suite
+bb --classpath . -m soma.methods.analyze                        # → report
+bb --classpath . -m soma.methods.datom-emit                     # → EAVT Datom log
 ```
 
 ## Why the raises matter

@@ -15,9 +15,9 @@ methods authored directly in babashka-runnable Clojure (pure, no deps → also k
 ## Run
 
 ```bash
-bb --classpath 20-actors 20-actors/soma/methods/test_soma.clj   # 16 tests / 67 assertions
-bb --classpath 20-actors -m soma.methods.analyze                # → forestry-stand R0 report
-bb --classpath 20-actors -m soma.methods.datom-emit             # → kotoba EAVT Datom log
+bb run_tests.clj                                                # 40 tests / 150 assertions
+bb --classpath . -m soma.methods.analyze                        # → forestry-stand R0 report
+bb --classpath . -m soma.methods.datom-emit                     # → kotoba EAVT Datom log
 ```
 
 ## What it does

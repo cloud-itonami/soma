@@ -1,0 +1,11 @@
+{:schema-version 1
+ :repository "etzhayyim/com-etzhayyim-soma"
+ :classification :actor
+ :canonical-actor-metadata "manifest.edn"
+ :canonical-data-format :edn
+ :actor-owned-contracts ["lex/fellAttestation.edn"]
+ :dependencies []
+ :external-wire-formats #{}
+ :tests {:command ["bb" "run_tests.clj"]
+         :count 40
+         :assertions 150}}

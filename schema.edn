@@ -1,4 +1,4 @@
-;; 20-actors/soma/schema.edn — Datomic/Datascript-compatible schema for soma's .edn files
+;; schema.edn — Datomic/Datascript-compatible schema for soma's .edn files
 ;; (auto-generated; :db/ident attribute defs; no Datomic-specific :db.install/_attribute keys)
 ;; manifest.edn is intentionally excluded (pending shared-consumer patch, see commit msg).
 
