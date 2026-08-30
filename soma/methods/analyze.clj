@@ -3,7 +3,9 @@
 ;; Loads the forest-stand seed and runs the R0 sim pipeline:
 ;;   1. fell — for every harvestable tree, plan a directional fell (notch + hinge +
 ;;      back cut) aimed into a clear lane; protected/no-cut trees are REFUSED (G7),
-;;      unsafe fells (fall zone overlapping a human/road/watercourse) are REFUSED (G5);
+;;      unsafe fells are REFUSED (G5) — either a person inside the statutory
+;;      2x-height keep-out circle (労働安全衛生規則 第481条第2項, unclearable by
+;;      re-aiming) or a fall sector overlapping a road/watercourse;
 ;;   2. buck — cut-to-length value optimization of each felled stem (sawlog>pulp DP);
 ;;   3. extract — slope-limited, low-ground-impact forwarder route to the landing
 ;;      (refuses over-grade / over-pressure / protected soil, G2).
@@ -85,6 +87,15 @@
              ;; G7 — protected / no-cut: refuse, do not fell
              (fp/protected? tree)
              (update acc :refused conj {:tree (:id tree) :reason :protected})
+             ;; G5 (statutory) — 労働安全衛生規則 第481条第2項: a person inside the
+             ;; 2x-height circle. Reported separately from :no-clear-fall-line
+             ;; because no choice of aim can clear it — only moving the person can.
+             (seq (fp/keepout-intrusions tree exclusions))
+             (update acc :unsafe conj
+                     {:tree (:id tree)
+                      :reason :person-in-statutory-keepout
+                      :keepout-r (fp/keepout-radius-m tree)
+                      :persons (mapv :id (fp/keepout-intrusions tree exclusions))})
              :else
              (if-let [aim (aim-away-from-exclusions tree exclusions)]
                (let [plan (fp/plan-fell tree aim exclusions)
@@ -187,7 +198,11 @@
        "trees: " (:n-trees res) "\n"
        "felled (safe): " (count (:fells res)) "\n"
        "refused (protected/no-cut, G7): " (pr-str (mapv :tree (:refused res))) "\n"
-       "unsafe (no clear fall line, G5): " (pr-str (mapv :tree (:unsafe res))) "\n"
+       "unsafe — no clear fall line (G5): "
+       (pr-str (mapv :tree (filter #(= :no-clear-fall-line (:reason %)) (:unsafe res)))) "\n"
+       "unsafe — person inside the statutory 2x-height keep-out circle "
+       "(G5, 労働安全衛生規則 第481条第2項): "
+       (pr-str (mapv :tree (filter #(= :person-in-statutory-keepout (:reason %)) (:unsafe res)))) "\n"
        "total bucked value: " (format "%.1f" (:total-value res)) "\n"
        "extraction segments: " (get-in res [:extraction :n-segments])
        " (max grade " (format "%.1f" (get-in res [:extraction :max-grade-pct])) "%)\n"))

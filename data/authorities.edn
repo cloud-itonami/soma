@@ -1,0 +1,198 @@
+;; soma 杣 — data/authorities.edn
+;;
+;; The primary sources behind soma's safety constants and gates.
+;;
+;; ## Why this file exists
+;;
+;; Every safety threshold in this repo used to cite ADR-2606142010 — soma's own
+;; ADR. The repo was the authority for its own limits. That is fine for a shape
+;; ("a fall zone is a sector") and wrong for a number ("1.5x tree height"),
+;; because a number that nothing outside the repo constrains cannot be checked
+;; and cannot be wrong. Grounding them found one gate that was strictly weaker
+;; than binding Japanese law (see :anei-481-2 below).
+;;
+;; ## How to verify a row
+;;
+;; Every :authority/source-url is an e-Gov Laws API endpoint that was fetched and
+;; returned 200 with the quoted text inside it. Fetch it and grep the quote:
+;;
+;;   curl -sS 'https://laws.e-gov.go.jp/api/1/lawdata/347M50002000032' \
+;;     | python3 -c 'import sys,re,xml.etree.ElementTree as E; \
+;;         r=E.parse(sys.stdin).getroot(); \
+;;         a=[x for x in r.find(".//MainProvision").iter("Article") if x.get("Num")=="481"][0]; \
+;;         print(re.sub(r"\s+"," ","".join(a.itertext())))'
+;;
+;; ⚠ Do NOT verify a citation against https://laws.e-gov.go.jp/law/<id>. That
+;; page returns **200 for law IDs that do not exist** — it is a single-page app
+;; that renders a shell before it resolves the ID. Measured 2026-08-30: the
+;; wrong Forest Act ID 326AC0000000249 (AC0) returned 200 from /law/ and 404
+;; from the API; the real ID is 326AC1000000249 (AC1). A checker pointed at the
+;; HTML page reports "reachable" for a citation that does not exist, which is
+;; the same value it reports for one that does. Use /api/1/lawdata/<id>.
+;;
+;; ## What :authority/conformance means
+;;
+;;   :conformant                     soma's rule is at least as strict as the source.
+;;   :more-conservative-than-source  soma refuses more than the source requires.
+;;                                   Deliberate for an R0 planner; recorded so it
+;;                                   is a decision and not an accident.
+;;   :cited-not-implemented          the source binds this actor and soma does not
+;;                                   model it yet. NOT a claim of compliance.
+;;
+;; There is deliberately no :non-conformant row: the one that existed
+;; (:anei-481-2) was fixed in the same commit that added this file, because
+;; recording "we are below the statutory floor" and shipping it is worse than
+;; not having looked.
+;;
+;; Reference corpus, not a datom seed — plain readable EDN, unlike data/stand.edn
+;; which is pr-str'd for datom_emit. Nothing loads this file by glob.
+
+{:corpus/id :soma.authorities
+ :corpus/verified-at "2026-08-30"
+ :corpus/method "Each :authority/source-url fetched with curl; HTTP status and
+                 payload size recorded; the quoted provision extracted from the
+                 <MainProvision> subtree only (article numbers repeat in 附則)."
+ :corpus/jurisdiction :jp
+
+ :corpus/authorities
+ [;; ── the one that was wrong ────────────────────────────────────────────────
+  {:authority/id :anei-481-2
+   :authority/instrument "労働安全衛生規則"
+   :authority/instrument-en "Ordinance on Industrial Safety and Health"
+   :authority/law-id "347M50002000032"
+   :authority/provision "第481条第2項"
+   :authority/source-url "https://laws.e-gov.go.jp/api/1/lawdata/347M50002000032"
+   :authority/http-status 200
+   :authority/quote
+   "事業者は、伐木の作業を行う場合は、伐倒木等が激突することによる危険を防止するため、伐倒しようとする立木を中心として、当該立木の高さの二倍に相当する距離を半径とする円形の内側には、他の作業従事者が立ち入ることについて、禁止する旨を見やすい箇所に表示することその他の方法により禁止しなければならない。"
+   :authority/holding
+   "Keep-out for OTHER WORKERS is a full CIRCLE centred on the stem, radius =
+    2x the tree's height. Not a sector, and not 1.5x."
+   :authority/binds
+   ["soma.methods.fell-plan/statutory-keepout-radius-factor"
+    "soma.methods.fell-plan/keepout-intrusions"
+    "soma.methods.fell-plan/safe-fell?"
+    "soma.methods.fell-plan/plan-fell"
+    "G5"]
+   :authority/conformance :conformant
+   :authority/note
+   "Was :non-conformant until 2026-08-30. fall-zone-radius-factor was 1.5 and
+    the gate was a +/-35deg sector, so a worker OFF the predicted fall line but
+    INSIDE the statutory circle passed. Measured on this repo's own seed stand:
+    tree t-3 (h=27m, statutory circle 54m) with x-crew at 36.1m returned
+    safe-fell? = true for 59 of 72 aim azimuths. Both the radius and the shape
+    were wrong, and the shape mattered more. Fixed by adding a separate
+    human-only circular gate; the directional sector is kept for road and
+    watercourse exclusions, where 'does the tree land on it' is the right
+    question and the statute does not speak."}
+
+  ;; ── cited, and soma is stricter than required ────────────────────────────
+  {:authority/id :shu-9
+   :authority/instrument "絶滅のおそれのある野生動植物の種の保存に関する法律"
+   :authority/instrument-en "Act on Conservation of Endangered Species of Wild Fauna and Flora"
+   :authority/law-id "404AC0000000075"
+   :authority/provision "第9条"
+   :authority/source-url "https://laws.e-gov.go.jp/api/1/lawdata/404AC0000000075"
+   :authority/http-status 200
+   :authority/quote
+   "国内希少野生動植物種及び緊急指定種（以下この節及び第五十四条第二項において「国内希少野生動植物種等」という。）の生きている個体は、捕獲、採取、殺傷又は損傷（以下「捕獲等」という。）をしてはならない。"
+   :authority/holding
+   "Damaging (損傷) a living individual of a nationally listed endangered species
+    is prohibited outright, subject to enumerated permits. Felling a listed tree
+    is 損傷."
+   :authority/binds ["soma.methods.fell-plan/protected?" "G7"]
+   :authority/conformance :conformant}
+
+  {:authority/id :shinrin-34-1
+   :authority/instrument "森林法"
+   :authority/instrument-en "Forest Act"
+   :authority/law-id "326AC1000000249"
+   :authority/provision "第34条第1項"
+   :authority/source-url "https://laws.e-gov.go.jp/api/1/lawdata/326AC1000000249"
+   :authority/http-status 200
+   :authority/quote
+   "保安林においては、政令で定めるところにより、都道府県知事の許可を受けなければ、立木を伐採してはならない。"
+   :authority/holding
+   "In a 保安林 (protected forest, designated under 第25条) felling requires the
+    prefectural governor's permission. It is PERMIT-GATED, not prohibited."
+   :authority/binds ["soma.methods.fell-plan/protected?" "G2" "G7"]
+   :authority/conformance :more-conservative-than-source
+   :authority/note
+   "soma's :protected flag refuses absolutely and models no permit path. Correct
+    for R0 (design+sim, no authority to hold a permit) and wrong for any future
+    tier that plans permitted 択伐 under 第34条の2. Recorded so the gap is a
+    decision. Do not relax :protected without a permit record in the plan."}
+
+  ;; ── cited, binding, and NOT modelled ─────────────────────────────────────
+  {:authority/id :anei-477-1-3
+   :authority/instrument "労働安全衛生規則"
+   :authority/law-id "347M50002000032"
+   :authority/provision "第477条第1項第三号"
+   :authority/source-url "https://laws.e-gov.go.jp/api/1/lawdata/347M50002000032"
+   :authority/http-status 200
+   :authority/quote
+   "三 伐倒しようとする立木の胸高直径が二十センチメートル以上であるときは、伐根直径の四分の一以上の深さの受け口を作り、かつ、適当な深さの追い口を作ること。この場合において、技術的に困難である場合を除き、受け口と追い口の間には、適当な幅の切り残しを確保すること。"
+   :authority/holding
+   "For DBH >= 20cm: a notch (受け口) at least 1/4 of the STUMP diameter deep, a
+    back cut (追い口), and holding wood (切り残し) left between them."
+   :authority/binds ["soma.methods.fell-plan/hinge-ratio" "soma.methods.fell-plan/hinge-width-m"]
+   :authority/conformance :cited-not-implemented
+   :authority/note
+   "The holding wood soma models (hinge-ratio 0.10) is the sawyer's rule of
+    thumb for WIDTH; the ordinance constrains the notch DEPTH (>= 1/4 stump
+    diameter) and soma has no notch-depth model and no DBH>=20cm trigger at all.
+    hinge-ratio 0.10 is therefore still uncited — it is a practice convention,
+    not a legal minimum, and this file does not pretend otherwise."}
+
+  {:authority/id :anei-483
+   :authority/instrument "労働安全衛生規則"
+   :authority/law-id "347M50002000032"
+   :authority/provision "第483条"
+   :authority/source-url "https://laws.e-gov.go.jp/api/1/lawdata/347M50002000032"
+   :authority/http-status 200
+   :authority/quote
+   "事業者は、造林等の作業を行う場合において、強風、大雨、大雪等の悪天候のため、当該作業の実施について危険が予想されるときは、当該作業を行わせてはならない。"
+   :authority/holding
+   "Felling must not be carried out at all in high wind / heavy rain / heavy snow."
+   :authority/binds ["soma.methods.fell-plan/wind-bias-per-mps" "soma.methods.fell-plan/predict-fall-az"]
+   :authority/conformance :cited-not-implemented
+   :authority/note
+   "predict-fall-az's docstring says 'a strong cross-wind makes a fell unsafe to
+    attempt (caller's gate)'. There is no such gate in this repo — no caller
+    checks wind-mps against any threshold. Wind only bends the predicted fall
+    line, so a 25 m/s gale plans as a slightly rotated safe fell. The ordinance
+    sets no numeric wind threshold, so implementing this needs a sourced
+    operational limit, not an invented one; that is why it is recorded rather
+    than guessed."}
+
+  {:authority/id :anei-477-1-1
+   :authority/instrument "労働安全衛生規則"
+   :authority/law-id "347M50002000032"
+   :authority/provision "第477条第1項第一号"
+   :authority/source-url "https://laws.e-gov.go.jp/api/1/lawdata/347M50002000032"
+   :authority/http-status 200
+   :authority/quote "一 伐倒の際に退避する場所を、あらかじめ、選定すること。"
+   :authority/holding "A retreat position must be chosen BEFORE the fell."
+   :authority/binds ["soma.methods.fell-plan/plan-fell"]
+   :authority/conformance :cited-not-implemented
+   :authority/note
+   "plan-fell returns no retreat position. An R0 plan that cannot say where the
+    sawyer stands is not yet a felling plan a human could execute."}
+
+  {:authority/id :anei-479-2
+   :authority/instrument "労働安全衛生規則"
+   :authority/law-id "347M50002000032"
+   :authority/provision "第479条第2項"
+   :authority/source-url "https://laws.e-gov.go.jp/api/1/lawdata/347M50002000032"
+   :authority/http-status 200
+   :authority/quote
+   "事業者は、伐木の作業を行う場合において、当該立木の伐倒の作業に従事する労働者以外の作業従事者（以下この条及び第四百八十一条第二項において「他の作業従事者」という。）に、伐倒により危険を生ずるおそれのあるときは、当該立木の伐倒の作業に従事する労働者に、あらかじめ、前項の合図を行わせ、他の作業従事者が避難したことを確認させた後でなければ、伐倒させてはならない。"
+   :authority/holding
+   "Signal first, CONFIRM the other workers have evacuated, and only then fell."
+   :authority/binds ["soma.methods.fell-plan/plan-fell" "lex/fellAttestation.edn"]
+   :authority/conformance :cited-not-implemented
+   :authority/note
+   "This is the procedural half of :anei-481-2 and is what makes the circle
+    enforceable in the field. soma's geometric gate now refuses a fell while a
+    worker is inside the circle; it has no representation of the worker having
+    been signalled and confirmed clear, which is what would let the fell proceed."}]}
