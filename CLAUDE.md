@@ -30,9 +30,21 @@ methods authored directly in babashka-runnable Clojure, pure (no deps) so they r
 - **G4 — dividend-coupled.** Forestry-labour displacement is coupled to a funded
   Displacement-Dividend cohort (ADR-2606032130 G2). No live displacement without it.
 - **G5 — exclusion-zone fell safety (the headline gate).** `fell_plan/safe-fell?` is false and
-  `plan-fell` **RAISES** when the predicted fall zone (a ≈1.5× tree-height sector around the
-  fall line) overlaps ANY exclusion point — human, road, or watercourse. Fall fatality is the
-  #1 logging hazard; an unsafe fell must surface, never be silently planned.
+  `plan-fell` **RAISES** in either of two independent cases. Fall fatality is the #1 logging
+  hazard; an unsafe fell must surface, never be silently planned.
+  1. **The statutory circle.** 労働安全衛生規則 第481条第2項 excludes every other worker from
+     a **circle of radius 2× the tree's height**, centred on the stem. It is a circle, so no
+     aim clears it — re-aiming is not a remedy, and `plan-fell` refuses before it even
+     predicts the fall line. This is **law, not soma's number**; the provision is quoted in
+     `data/authorities.edn` (`:anei-481-2`).
+  2. **The directional fall sector.** soma's own model: a ≈1.5× tree-height sector around the
+     predicted fall line. This is the right question for a **road or watercourse**, which the
+     ordinance does not speak to.
+  ⚠ Before 2026-08-30 only (2) existed, at 1.5× and gated by azimuth, so a worker standing
+  off the fall line but inside the statutory circle read as clear — on this repo's own
+  `data/stand.edn`, tree `t-3` (h=27 m, circle 54 m) with `x-crew` at 36.1 m planned as safe
+  for **59 of 72** aim azimuths. Do not weaken (1) back into (2): they answer different
+  questions and only (1) is binding.
 - **G6 — Murakumo-only** narration/inference (ADR-2605215000).
 - **G7 — protected-species / no-cut refusal.** A protected species or a no-cut flag
   (old-growth / seed-tree) on a tree makes `fell_plan/plan-fell` **RAISE** — felling is

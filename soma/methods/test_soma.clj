@@ -60,23 +60,105 @@
       (is (not (fp/in-fall-zone? [0 0] 0.0 20.0 [40 0]))))))
 
 (deftest safe-fell-predicate
-  (testing "safe iff not protected AND no exclusion in the fall zone"
+  (testing "the DIRECTIONAL sector gate, tested with a road — the statutory circle
+            (第481条第2項) covers people at any azimuth, so a person can no longer
+            demonstrate a direction-dependent result at all (see the keep-out tests)"
     (let [tree {:id "t" :coord [0 0] :height-m 20.0 :diameter-m 0.4}
-          crew {:id "x" :kind :human :coord [10 0]}]
-      (is (fp/safe-fell? tree 180.0 [crew]))        ; falls away from crew
-      (is (not (fp/safe-fell? tree 0.0 [crew])))))) ; falls toward crew
+          road {:id "x" :kind :road :coord [10 0]}]
+      (is (fp/safe-fell? tree 180.0 [road]))        ; falls away from the road
+      (is (not (fp/safe-fell? tree 0.0 [road])))))) ; falls toward the road
 
 (deftest plan-fell-raises-on-exclusion
-  (testing "G5 — a fall zone overlapping a human/road/watercourse RAISES"
+  (testing "G5 — a fall zone overlapping a road/watercourse RAISES"
     (let [tree {:id "t-1" :coord [0 0] :height-m 20.0 :diameter-m 0.4
                 :lean-az 0.0 :lean-deg 0.0 :wind-mps 0.0}
-          crew {:id "x-crew" :kind :human :coord [10 0]}]
-      ;; aim east (0°), crew is due east → must raise
-      (is (thrown? clojure.lang.ExceptionInfo (fp/plan-fell tree 0.0 [crew])))
-      ;; aim west (180°), crew east → safe plan returned
-      (let [plan (fp/plan-fell tree 180.0 [crew])]
+          road {:id "x-road" :kind :road :coord [10 0]}]
+      ;; aim east (0°), road is due east → must raise
+      (is (thrown? clojure.lang.ExceptionInfo (fp/plan-fell tree 0.0 [road])))
+      ;; aim west (180°), road east → safe plan returned
+      (let [plan (fp/plan-fell tree 180.0 [road])]
         (is (:exclusions-clear plan))
         (is (pos? (:hinge-m plan)))))))
+
+;; ── fell_plan: the statutory keep-out circle (労働安全衛生規則 第481条第2項) ──────
+;;
+;; These are the tests that were missing. The sector gate above only ever asked
+;; whether a point was near the predicted fall LINE; the ordinance excludes other
+;; workers from a CIRCLE and never mentions direction.
+
+(deftest statutory-keepout-is-two-heights-and-circular
+  (testing "第481条第2項 — radius is 2x tree height, and no azimuth is consulted"
+    (is (= 2.0 fp/statutory-keepout-radius-factor))
+    ;; strictly larger than soma's own directional sector radius
+    (is (> fp/statutory-keepout-radius-factor fp/fall-zone-radius-factor))
+    (let [tree {:id "t" :coord [0 0] :height-m 20.0 :diameter-m 0.4}]
+      (is (= 40.0 (fp/keepout-radius-m tree)))
+      ;; 39m out is inside; 41m out is outside — at EVERY azimuth
+      (doseq [[dx dy] [[39 0] [-39 0] [0 39] [0 -39] [27 27] [-27 -27]]]
+        (is (fp/in-keepout-circle? [0 0] 20.0 [dx dy])
+            (str "expected " [dx dy] " inside the 40m circle")))
+      (doseq [[dx dy] [[41 0] [-41 0] [0 41] [0 -41] [30 30] [-30 -30]]]
+        (is (not (fp/in-keepout-circle? [0 0] 20.0 [dx dy]))
+            (str "expected " [dx dy] " outside the 40m circle"))))))
+
+(deftest keepout-refuses-worker-off-the-fall-line
+  (testing "G5 — a worker OFF the predicted fall line but inside the 2x circle is
+            refused. This is the case the sector-only gate passed."
+    (let [tree {:id "t" :coord [0 0] :height-m 20.0 :diameter-m 0.4
+                :lean-az 0.0 :lean-deg 0.0 :wind-mps 0.0}
+          ;; due NORTH, 30m out: 90° off an eastward fall line, so OUTSIDE the
+          ;; ±35° sector — but 30m < 40m, so inside the statutory circle.
+          crew {:id "x-crew" :kind :human :coord [0 30]}]
+      ;; the old sector model saw nothing here
+      (is (empty? (fp/fall-zone-intrusions tree 0.0 [crew])))
+      ;; the statutory circle does
+      (is (= ["x-crew"] (mapv :id (fp/keepout-intrusions tree [crew]))))
+      (is (not (fp/safe-fell? tree 0.0 [crew])))
+      (is (thrown? clojure.lang.ExceptionInfo (fp/plan-fell tree 0.0 [crew]))))))
+
+(deftest keepout-cannot-be-cleared-by-re-aiming
+  (testing "第481条第2項 does not depend on aim, so NO aim clears an occupied circle"
+    (let [tree {:id "t" :coord [0 0] :height-m 20.0 :diameter-m 0.4
+                :lean-az 0.0 :lean-deg 0.0 :wind-mps 0.0}
+          crew {:id "x-crew" :kind :human :coord [0 30]}]
+      (is (every? (fn [aim] (not (fp/safe-fell? tree (double aim) [crew])))
+                  (range 0 360 5))
+          "some aim azimuth cleared a person inside the statutory circle")
+      (is (every? (fn [aim]
+                    (try (fp/plan-fell tree (double aim) [crew]) false
+                         (catch clojure.lang.ExceptionInfo _ true)))
+                  (range 0 360 15))))))
+
+(deftest keepout-applies-to-people-not-to-roads
+  (testing "第481条第2項 protects 他の作業従事者. A road inside the circle but off the
+            fall line is NOT excluded by it — the sector is the model there."
+    (let [tree {:id "t" :coord [0 0] :height-m 20.0 :diameter-m 0.4
+                :lean-az 0.0 :lean-deg 0.0 :wind-mps 0.0}
+          road {:id "x-road" :kind :road :coord [0 30]}
+          crew {:id "x-crew" :kind :human :coord [0 30]}]
+      (is (empty? (fp/keepout-intrusions tree [road])))
+      (is (seq (fp/keepout-intrusions tree [crew])))
+      (is (fp/safe-fell? tree 0.0 [road]))
+      (is (not (fp/safe-fell? tree 0.0 [crew]))))))
+
+(deftest keepout-raise-names-the-authority
+  (testing "the refusal carries the provision it enforces, so an operator can look it up"
+    (let [tree {:id "t" :coord [0 0] :height-m 20.0 :diameter-m 0.4
+                :lean-az 0.0 :lean-deg 0.0 :wind-mps 0.0}
+          crew {:id "x-crew" :kind :human :coord [0 30]}
+          d (try (fp/plan-fell tree 0.0 [crew]) nil
+                 (catch clojure.lang.ExceptionInfo e (ex-data e)))]
+      (is (= :anei-481-2 (:authority d)))
+      (is (= 40.0 (:keepout-r d)))
+      (is (= ["x-crew"] (:persons d))))))
+
+(deftest plan-carries-the-keepout-radius
+  (testing "a returned plan states the circle it cleared, not just the sector"
+    (let [tree {:id "t" :coord [0 0] :height-m 20.0 :diameter-m 0.4
+                :lean-az 0.0 :lean-deg 0.0 :wind-mps 0.0}
+          plan (fp/plan-fell tree 0.0 [])]
+      (is (= 40.0 (:keepout-r plan)))
+      (is (= 30.0 (:fall-zone-r plan))))))
 
 (deftest plan-fell-raises-on-protected
   (testing "G7 — a protected / no-cut tree RAISES regardless of clear fall line"
@@ -414,3 +496,69 @@
       ;; strict superset — emit-day has more datoms than base emit
       (is (> (count (clojure.edn/read-string full))
              (count (clojure.edn/read-string base)))))))
+
+;; ── data/authorities.edn: the citations must still describe the code ──────────
+;;
+;; Without this, the corpus and the constants drift apart silently: someone edits
+;; statutory-keepout-radius-factor and data/authorities.edn goes on asserting
+;; :conformant next to a quote that says 二倍.
+
+(deftest authorities-corpus-is-well-formed
+  (testing "every authority carries a provision, a fetched source URL and a verdict"
+    (let [c (clojure.edn/read-string (slurp "data/authorities.edn"))
+          as (:corpus/authorities c)]
+      (is (= :soma.authorities (:corpus/id c)))
+      (is (pos? (count as)))
+      (doseq [a as]
+        (is (keyword? (:authority/id a)))
+        (is (string? (:authority/provision a)) (str (:authority/id a) " has no provision"))
+        (is (re-find #"^https://laws\.e-gov\.go\.jp/api/"
+                     (str (:authority/source-url a)))
+            (str (:authority/id a) " must cite the e-Gov API, not the /law/ HTML page"))
+        (is (= 200 (:authority/http-status a)))
+        (is (seq (:authority/quote a)))
+        (is (contains? #{:conformant :more-conservative-than-source :cited-not-implemented}
+                       (:authority/conformance a))
+            (str (:authority/id a) " has an unknown conformance verdict"))))))
+
+(deftest keepout-constant-matches-its-citation
+  (testing ":anei-481-2 says 二倍 (2x) and claims :conformant — the code must agree"
+    (let [a (->> (:corpus/authorities (clojure.edn/read-string (slurp "data/authorities.edn")))
+                 (filter #(= :anei-481-2 (:authority/id %)))
+                 first)]
+      (is (some? a) "the keep-out authority is missing from the corpus")
+      (is (= :conformant (:authority/conformance a)))
+      ;; the quoted provision really does say "twice the height, as a radius, circular"
+      (is (re-find #"高さの二倍に相当する距離を半径とする円形" (:authority/quote a)))
+      ;; ...and the constant the corpus points at really is 2.0
+      (is (= 2.0 fp/statutory-keepout-radius-factor))
+      (is (some #{"soma.methods.fell-plan/statutory-keepout-radius-factor"}
+                (:authority/binds a))))))
+
+(deftest unimplemented-obligations-are-not-claimed-as-compliance
+  (testing "the four cited-but-unmodelled provisions must NOT read as :conformant"
+    (let [by-id (into {} (map (juxt :authority/id identity))
+                      (:corpus/authorities (clojure.edn/read-string (slurp "data/authorities.edn"))))]
+      (doseq [id [:anei-477-1-3 :anei-483 :anei-477-1-1 :anei-479-2]]
+        (is (= :cited-not-implemented (:authority/conformance (by-id id)))
+            (str id " must stay :cited-not-implemented until it is actually modelled"))
+        (is (seq (:authority/note (by-id id)))
+            (str id " must say what is missing"))))))
+
+(deftest analyze-separates-statutory-keepout-from-no-clear-fall-line
+  (testing "on the reference stand, t-3 is refused because a worker stands inside
+            its statutory circle — NOT because no aim clears the fall sector.
+            Reporting it as :no-clear-fall-line would suggest re-aiming helps."
+    (let [res (az/run seed)
+          by-reason (group-by :reason (:unsafe res))]
+      (is (= ["t-3"] (mapv :tree (:person-in-statutory-keepout by-reason))))
+      (is (empty? (:no-clear-fall-line by-reason)))
+      (let [t3 (first (:person-in-statutory-keepout by-reason))]
+        (is (= 54.0 (:keepout-r t3)))           ; 2 x 27m
+        (is (= ["x-crew"] (:persons t3))))
+      ;; and it is genuinely excluded from the felled set
+      (is (not (some #{"t-3"} (mapv :tree (:fells res)))))
+      (is (= 3 (count (:fells res))))
+      (let [out (az/report-str res)]
+        (is (re-find #"statutory 2x-height keep-out circle" out))
+        (is (re-find #"第481条第2項" out))))))

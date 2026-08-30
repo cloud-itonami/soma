@@ -13,6 +13,16 @@
 ;; UNSAFE / protected fells RAISE (ex-info), never silently plan (G5 fall-fatality
 ;; gate + G7 protected-species/no-cut refusal). Felling is the #1 logging hazard.
 ;;
+;; TWO keep-outs, and they answer different questions:
+;;   * the STATUTORY circle — 労働安全衛生規則 第481条第2項 puts every OTHER WORKER
+;;     outside a full circle of radius 2x tree height. Direction is irrelevant: a
+;;     worker behind the sawyer is as excluded as one on the fall line.
+;;   * the directional FALL SECTOR — where the stem is predicted to land. This is
+;;     the right model for a road or a watercourse, which the ordinance does not
+;;     speak to, and it is soma's own model, not law.
+;; Both gate. See data/authorities.edn :anei-481-2 for the quoted provision and
+;; for what this code did wrong before 2026-08-30.
+;;
 ;; Pure Clojure, no deps → babashka-runnable AND kotoba-pywasm-portable.
 ;; Per ADR-2606142010 (soma R0). Clojure-first (the GAP-actor wave).
 (ns soma.methods.fell-plan)
@@ -94,6 +104,25 @@
    inside ±this of the fall azimuth, within the radius, is in the danger sector."
   35.0)
 
+(def ^:const statutory-keepout-radius-factor
+  "Radius of the statutory keep-out circle, as a multiple of tree height.
+
+   NOT soma's number: 労働安全衛生規則 第481条第2項 requires that other workers be
+   kept outside \"当該立木の高さの二倍に相当する距離を半径とする円形\" — a circle of
+   radius 2x the tree's height, centred on the stem being felled. It is a CIRCLE,
+   so `fall-zone-half-angle-deg` does not apply to it, and it is 2.0, not the 1.5
+   this file used for its own sector.
+
+   Cited in data/authorities.edn :anei-481-2 (e-Gov law 347M50002000032)."
+  2.0)
+
+(defn person?
+  "True iff this exclusion point is a person. 第481条第2項 protects 他の作業従事者 —
+   people — so the statutory circle applies to these and not to a road or a
+   watercourse, for which the directional fall sector is the right model."
+  [ex]
+  (= :human (:kind ex)))
+
 (defn- dist [[x1 y1] [x2 y2]]
   (Math/sqrt (+ (* (- x1 x2) (- x1 x2)) (* (- y1 y2) (- y1 y2)))))
 
@@ -119,6 +148,32 @@
   [tree fall-az exclusions]
   (filter #(in-fall-zone? (:coord tree) fall-az (:height-m tree) (:coord %)) exclusions))
 
+(defn keepout-radius-m
+  "Statutory keep-out radius (m) for a tree — 2x its height (第481条第2項)."
+  [tree]
+  (* statutory-keepout-radius-factor (:height-m tree)))
+
+(defn in-keepout-circle?
+  "True iff `ex-coord` lies inside the statutory keep-out circle of a tree of
+   `height-m` standing at `tree-coord`. A CIRCLE — no azimuth is consulted,
+   because 第481条第2項 does not consult one."
+  [tree-coord height-m ex-coord]
+  (<= (dist tree-coord ex-coord) (* statutory-keepout-radius-factor height-m)))
+
+(defn keepout-intrusions
+  "Every PERSON inside the statutory keep-out circle (第481条第2項).
+
+   Independent of the fall azimuth on purpose. The predecessor of this function
+   was `fall-zone-intrusions` alone, which asked only whether a person was within
+   +/-35deg of the predicted fall line out to 1.5x height — so a worker standing
+   off the line but well inside the statutory circle read as clear. Measured on
+   data/stand.edn: tree t-3 (h=27m, circle 54m) with x-crew at 36.1m passed for
+   59 of 72 aim azimuths."
+  [tree exclusions]
+  (filter #(and (person? %)
+                (in-keepout-circle? (:coord tree) (:height-m tree) (:coord %)))
+          exclusions))
+
 ;; ── the planning gate ─────────────────────────────────────────────────────────
 (defn protected?
   "True iff the tree is constitutionally un-fellable: a protected species or a
@@ -129,22 +184,40 @@
 (defn safe-fell?
   "True iff felling `tree` along `fall-az` is safe AND permitted:
      * G7 — the tree is not protected / not no-cut;
-     * G5 — the fall zone contains NO exclusion point.
+     * G5 — no person inside the statutory 2x-height keep-out CIRCLE
+       (労働安全衛生規則 第481条第2項), and
+     * G5 — the directional fall SECTOR contains no exclusion point of any kind.
+   The circle is not implied by the sector: it is bigger (2x vs 1.5x height) and
+   it ignores direction, so it refuses fells the sector alone allows.
    Pure predicate; never throws (use `plan-fell` for the raising variant)."
   [tree fall-az exclusions]
   (and (not (protected? tree))
+       (empty? (keepout-intrusions tree exclusions))
        (empty? (fall-zone-intrusions tree fall-az exclusions))))
 
 (defn plan-fell
   "Plan a directional fell of `tree` aimed at `aim-az`, against the stand's wind
    and `exclusions`. Returns a plan map {:tree :fall-az :hinge-m :fall-zone-r
-   :exclusions-clear}. RAISES (ex-info) when the tree is protected (G7) or when
-   the fall zone overlaps any exclusion/human point (G5) — an unsafe or forbidden
-   fell must SURFACE, never be silently planned. Felling is the #1 logging hazard."
+   :keepout-r :exclusions-clear}. RAISES (ex-info) when the tree is protected
+   (G7), when a person is inside the statutory 2x-height keep-out circle
+   (G5, 労働安全衛生規則 第481条第2項), or when the fall zone overlaps any
+   exclusion point (G5) — an unsafe or forbidden fell must SURFACE, never be
+   silently planned. Felling is the #1 logging hazard."
   [tree aim-az exclusions]
   (when (protected? tree)
     (throw (ex-info "tree is protected / no-cut — felling refused (G7)"
                     {:tree (:id tree) :protected (:protected tree) :no-cut (:no-cut tree)})))
+  ;; The statutory circle is checked BEFORE the fall line is even predicted:
+  ;; 第481条第2項 does not depend on where the tree is aimed, so no choice of aim
+  ;; can clear it. Refusing here says so — re-aiming is not a remedy.
+  (let [in-circle (keepout-intrusions tree exclusions)]
+    (when (seq in-circle)
+      (throw (ex-info (str "a person is inside the statutory keep-out circle "
+                           "(2x tree height) — felling refused (G5, 労働安全衛生規則 第481条第2項)")
+                      {:tree (:id tree)
+                       :keepout-r (keepout-radius-m tree)
+                       :persons (mapv :id in-circle)
+                       :authority :anei-481-2}))))
   (let [fall-az (predict-fall-az {:aim-az aim-az
                                   :lean-az (:lean-az tree 0.0)
                                   :lean-deg (:lean-deg tree 0.0)
@@ -160,4 +233,5 @@
      :fall-az fall-az
      :hinge-m (hinge-width-m (:diameter-m tree))
      :fall-zone-r (* fall-zone-radius-factor (:height-m tree))
+     :keepout-r (keepout-radius-m tree)
      :exclusions-clear true}))
