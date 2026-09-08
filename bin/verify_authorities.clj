@@ -17,7 +17,7 @@
 ;; offline. The suite checks the corpus's SHAPE (see test_soma.clj); this checks
 ;; that the shape still corresponds to the world.
 (require '[clojure.edn :as edn]
-         '[clojure.string :as str]
+         '[kotoba.lang.text :as str]
          '[babashka.process :as p])
 
 (def ^:private corpus (edn/read-string (slurp "data/authorities.edn")))
