@@ -10,7 +10,7 @@
 ;; Pure Clojure, no deps → babashka-runnable AND kotoba-pywasm-portable.
 ;; Per ADR-2606142010 (soma R0).
 (ns soma.methods.coverage
-  (:require [kotoba.lang.text :as str]))
+  (:require [clojure.string :as str]))
 
 (def sub-tasks
   "The forestry/logging occupation decomposed into sub-tasks, each marked

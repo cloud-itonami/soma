@@ -11,7 +11,7 @@
 ;; Per ADR-2606142010 (soma R0).
 (ns soma.methods.datom-emit
   (:require [clojure.edn :as edn]
-            [kotoba.lang.text :as str]
+            [clojure.string :as str]
             [soma.methods.analyze :as az]))
 
 (defn fmt
