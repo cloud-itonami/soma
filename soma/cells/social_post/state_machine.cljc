@@ -12,7 +12,7 @@
     R0-gate — the status is dry-run (a 'published' request REFUSES).
 
   Self-contained. Stdlib only. Deterministic."
-  (:require [kotoba.lang.text :as str]))
+  (:require [clojure.string :as str]))
 
 (def disclaimer
   "【観測ミラー / accountability map — NOT a verdict, NOT advice, 非断定】")
