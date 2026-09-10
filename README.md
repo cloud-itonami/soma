@@ -15,15 +15,15 @@ methods authored directly in babashka-runnable Clojure (pure, no deps → also k
 ## Run
 
 ```bash
-bb run_tests.clj                                                # 40 tests / 150 assertions
+bb run_tests.kotoba                                                # 40 tests / 150 assertions
 bb --classpath . -m soma.methods.analyze                        # → forestry-stand R0 report
 bb --classpath . -m soma.methods.datom-emit                     # → kotoba EAVT Datom log
-bb bin/verify_authorities.clj                                   # citations vs. the live e-Gov API
+bb bin/verify_authorities.kotoba                                   # citations vs. the live e-Gov API
 ```
 
 `verify_authorities.clj` exits **0** verified · **1** a citation does not match its source ·
 **2** the API was unreachable so nothing was checked. It needs network and is deliberately not
-part of `bb run_tests.clj`, which stays green offline.
+part of `bb run_tests.kotoba`, which stays green offline.
 
 ## What it does
 
