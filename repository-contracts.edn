@@ -6,6 +6,6 @@
  :actor-owned-contracts ["lex/fellAttestation.edn"]
  :dependencies []
  :external-wire-formats #{}
- :tests {:command ["bb" "run_tests.clj"]
+ :tests {:command ["bb" "run_tests.kotoba"]
          :count 40
          :assertions 150}}
