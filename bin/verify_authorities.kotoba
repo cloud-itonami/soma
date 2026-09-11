@@ -1,7 +1,7 @@
-#!/usr/bin/env bb
+#!/usr/bin/env kbb
 ;; soma 杣 — verify data/authorities.edn against the live e-Gov Laws API.
 ;;
-;;   bb bin/verify_authorities.clj
+;;   kbb bin/verify_authorities.cljk
 ;;
 ;; Exit codes are three-valued ON PURPOSE:
 ;;
@@ -13,7 +13,7 @@
 ;; failure this repo's citations are meant to prevent. "Not checked" must not be
 ;; spelled the same way as "checked and clean".
 ;;
-;; This is deliberately NOT part of `bb run_tests.clj`: the suite must stay green
+;; This is deliberately NOT part of `kbb run_tests.cljk`: the suite must stay green
 ;; offline. The suite checks the corpus's SHAPE (see test_soma.clj); this checks
 ;; that the shape still corresponds to the world.
 (require '[clojure.edn :as edn]
