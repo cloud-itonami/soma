@@ -16,8 +16,8 @@ methods authored directly in babashka-runnable Clojure (pure, no deps → also k
 
 ```bash
 bb run_tests.kotoba                                                # 40 tests / 150 assertions
-bb --classpath . -m soma.methods.analyze                        # → forestry-stand R0 report
-bb --classpath . -m soma.methods.datom-emit                     # → kotoba EAVT Datom log
+kbb --classpath . -m soma.methods.analyze                        # → forestry-stand R0 report
+kbb --classpath . -m soma.methods.datom-emit                     # → kotoba EAVT Datom log
 bb bin/verify_authorities.kotoba                                   # citations vs. the live e-Gov API
 ```
 

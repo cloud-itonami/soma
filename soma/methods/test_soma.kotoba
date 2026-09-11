@@ -1,5 +1,5 @@
 ;; soma 杣 — test suite (clojure.test, babashka-runnable).
-;; Tests are invoked by `bb run_tests.clj`; requiring this namespace has no process-exit side effect.
+;; Tests are invoked by `kbb run_tests.cljk`; requiring this namespace has no process-exit side effect.
 ;; Per ADR-2606142010 (soma R0).
 (ns soma.methods.test-soma
   (:require [clojure.test :refer [deftest is testing run-tests]]

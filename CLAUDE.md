@@ -76,8 +76,8 @@ com-etzhayyim-soma/
 ```bash
 # from repo root (classpath = 20-actors, ns = soma.methods.*)
 bb run_tests.kotoba                                                # full suite
-bb --classpath . -m soma.methods.analyze                        # → report
-bb --classpath . -m soma.methods.datom-emit                     # → EAVT Datom log
+kbb --classpath . -m soma.methods.analyze                        # → report
+kbb --classpath . -m soma.methods.datom-emit                     # → EAVT Datom log
 ```
 
 ## Why the raises matter
