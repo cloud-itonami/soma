@@ -56,7 +56,7 @@ methods authored directly in babashka-runnable Clojure, pure (no deps) so they r
 
 ```
 com-etzhayyim-soma/
-├── CLAUDE.md                       # this file
+├── AGENTS.md                       # this file
 ├── manifest.edn                    # actor manifest (5 cells, 8 gates, Clojure methods)
 ├── data/
 │   └── stand.edn                   # reference selective-harvest stand seed (:representative)

@@ -40,7 +40,7 @@ part of `bb run_tests.kotoba`, which stays green offline.
 R0 design+sim only (G1, no-server-key) · selective + regenerative only / no clear-cut /
 slope+soil limits (G2) · no worker surveillance (G3) · Displacement-Dividend-coupled (G4) ·
 **exclusion-zone fell safety — raises (G5)** · Murakumo-only (G6) · **protected-species /
-no-cut refusal — raises (G7)** · tazuna-teleoperable (G8). See `CLAUDE.md` for full text.
+no-cut refusal — raises (G7)** · tazuna-teleoperable (G8). See `AGENTS.md` for full text.
 
 ## Where the numbers come from
 
